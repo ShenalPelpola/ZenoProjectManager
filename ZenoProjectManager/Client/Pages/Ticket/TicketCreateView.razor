@@ -1,0 +1,108 @@
+﻿<div class="modal fade" id="exampleModalToggle" aria-hidden="true" aria-labelledby="exampleModalToggleLabel" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalToggleLabel">Create Ticket</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <EditForm class="row g-3" Model="createTicket" OnValidSubmit="HandleCreateForm">
+                    <DataAnnotationsValidator />
+                    <div class="col-md-12">
+                        <label for="ticketName" class="form-label">Ticket Title</label>
+                        <InputText @bind-Value="createTicket.TicketName" class="form-control" id="ticketName" required>Ticket Name</InputText>
+                    </div>
+                    <div class="col-12">
+                        <label for="ticketDescription" class="form-label">Description</label>
+                        <InputTextArea @bind-Value="createTicket.Description" class="form-control" id="ticketDescription" style="margin-top: -1px;" rows="4">Description</InputTextArea>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="storyPoints" class="form-label">Story Points</label>
+                        <InputText @bind-Value="StoryPoints" class="form-control" id="storyPoints">Story Points</InputText>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="type" class="form-label">Type</label>
+                        <InputText @bind-Value="createTicket.Type" type="text" class="form-control" id="type">Type</InputText>
+                    </div>
+
+                    <div class="col-md-6">
+                        <label for="users" class="form-label">Assignee</label>
+                        <InputSelect id="users" @bind-Value="userId" class="form-select">
+                            <option value="" selected disabled>Unassigned</option>
+                            @foreach (var user in Users)
+                            {
+                                <option value="@user.Id">@user.Email</option>
+                            }
+                        </InputSelect>
+                    </div>
+                    <InputText @bind-Value="createTicket.Status" type="hidden"></InputText>
+
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    @inject NavigationManager _navigationManager
+    @inject IToastService toastService
+
+    [Inject]
+    private IProjectUserService _projectUserService { get; set; }
+    [Inject]
+    private ITicketService _ticketService { get; set; }
+
+    [Parameter]
+    public Guid ProjectId { get; set; }
+    private string StoryPoints { get; set; }
+    private string userId { get; set; }
+    private List<User> Users { get; set; } = new List<User>();
+
+
+    private Ticket createTicket { get; set; } = new Ticket();
+
+    protected async override Task OnInitializedAsync()
+    {
+        Users = (await _projectUserService.GetUsersInProject(ProjectId)).ToList();
+        createTicket.Status = "TODO";
+    }
+
+    private async Task HandleCreateForm()
+    {
+        createTicket.ProjectId = ProjectId;
+
+        if(StoryPoints != null)
+        {
+            int StoryPointsint;
+            bool isNumber = int.TryParse(StoryPoints, out StoryPointsint);
+            if (!isNumber)
+            {
+                createTicket.StoryPoints = 0;
+            }
+            else {
+                createTicket.StoryPoints = StoryPointsint;
+            }
+        }
+
+        if(userId != null)
+        {
+            createTicket.UserId = Guid.Parse(userId);
+        }
+
+        var created = await _ticketService.CreateTicket(createTicket);
+        if (created == null)
+        {
+            toastService.ShowError("Please provide valid information in the ticket.");
+        }
+        else
+        {
+            toastService.ShowSuccess("Ticket Successfully created");
+            _navigationManager.NavigateTo(_navigationManager.Uri, true);
+        }
+    }
+}

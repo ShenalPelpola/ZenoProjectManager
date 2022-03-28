@@ -1,0 +1,105 @@
+﻿@inject ILocalStorageService _localStorageService
+@inject NavigationManager _navigationManager
+@inject IToastService _toastService
+
+<div class="modal" id="exampleModalToggle3" aria-labelledby="exampleModalToggleLabel">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-body mt-4">
+                <div class="auth-form-header">
+                    <img src="/images/logo.png" width="50" height="50" />
+                    <h5 class="modal-title mb-3 mt-3" style="text-align: center">Sign up to Zeno</h5>
+                    <div class="row">
+                        <div class="col-md-12"  @onclick="GoogleLogin"> <a class="btn btn-lg btn-google btn-block text-uppercase btn-outline" href="#"><img src="https://img.icons8.com/color/16/000000/google-logo.png"> Signup Using Google</a> </div>
+                    </div>
+                </div>
+                <EditForm class="row g-3" Model="loginUser" OnValidSubmit="HandleCreateForm">
+                    <DataAnnotationsValidator />
+                    <div class="col-md-12">
+                        <label for="Email" class="custom-label">Email</label>
+                        <InputText type="email" @bind-Value="loginUser.Email" class="form-control" id="Email" required>Email</InputText>
+                        <ValidationMessage For="@(() => loginUser.Email)" />
+                    </div>
+
+                    <div class="col-md-12">
+                        <label for="password" class="custom-label">Password</label>
+                        <InputText type="password" @bind-Value="loginUser.Password" class="form-control" id="companyImage" required>Password</InputText>
+                        <ValidationMessage For="@(() => loginUser.Password)" />
+                    </div>
+
+                    <div class="col-md-12 mt-4">
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    [Inject]
+    private IAuthService _authService { get; set; }
+
+    private User loginUser { get; set; } = new User();
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        if (QueryHelpers.ParseQuery(_navigationManager.Uri).TryGetValue("code", out var code))
+        {
+            string token = await _authService.GoogleLogin(code);
+            await redirectByUserRole(token);
+        }
+    }
+
+    private async Task HandleCreateForm()
+    {
+        AuthenticationResponse authenticationResponse = await _authService.Login(loginUser);
+
+        // check if the user exists.
+        if(authenticationResponse == null)
+        {
+            _toastService.ShowError("User with that email doesn't exists.");
+            return;
+        }
+
+        if (authenticationResponse.Token != string.Empty)
+        {
+            await redirectByUserRole(authenticationResponse.Token);
+        }
+        _navigationManager.NavigateTo("/");
+    }
+
+    private async Task redirectByUserRole(string token) {
+        var user = await _authService.GetUserByJwt(token);
+        if (user.Role == "admin")
+        {
+            await _localStorageService.SetItemAsync("jwt_token", token);
+            _navigationManager.NavigateTo("/companies", true);
+            return;
+        }
+        else if (user.Role == "user") {
+            await _localStorageService.SetItemAsync("jwt_token", token);
+            _navigationManager.NavigateTo("/user/projects", true);
+            return;
+        }
+    }
+
+    private async Task GoogleLogin()
+    {
+        var appIdAndRedirectUri = (await _authService.GetGoogleClientID()).Split('&');
+
+        var accessTokenRequest = "https://accounts.google.com/o/oauth2/v2/auth?"
+                                    + "scope=https%3A//www.googleapis.com/auth/userinfo.profile https%3A//www.googleapis.com/auth/userinfo.email&"
+                                    + "access_type=offline&"
+                                    + "include_granted_scopes=true&"
+                                    + "response_type=code&"
+                                    + "state=state_parameter_passthrough_value&"
+                                    + $"client_id={appIdAndRedirectUri[0]}&"
+                                    + $"redirect_uri={appIdAndRedirectUri[1]}";
+
+        _navigationManager.NavigateTo(accessTokenRequest, true);
+    }
+}

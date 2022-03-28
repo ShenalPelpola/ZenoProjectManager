@@ -1,0 +1,63 @@
+﻿<div class="container">
+    <div class="modal" id="myModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Create Project</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="createProject" OnValidSubmit="HandleCreateForm" class="form">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label for="projectName" class="custom-label">Project Name</label>
+                            <InputText @bind-Value="createProject.ProjectName" class="form-control" id="projectName">Project Name</InputText>
+                            <ValidationMessage class="alert alert-danger" For="@(() => createProject.ProjectName)" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="projectImage" class="custom-label">Image Url</label>
+                            <InputText @bind-Value="createProject.Image" class="form-control" id="projectImage">Image Url</InputText>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="projectDescription" class="custom-label">Project Description</label>
+                            <InputTextArea class="form-control" id="projectDescription" style="margin-top: -1px;" @bind-Value="@createProject.Description" rows="4"></InputTextArea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Inject]
+    private IProjectService _projectService { get; set; }
+    @inject NavigationManager _navigationManager
+    @inject IToastService toastService
+
+    [Parameter]
+    public Guid CompanyId { get; set; }
+
+    private Project createProject { get; set; } = new Project();
+
+    private async Task HandleCreateForm()
+    {
+        createProject.CompanyId = CompanyId;
+        createProject.CreatedDate = DateTime.Now;
+
+        var created = await _projectService.CreateProject(createProject);
+        if (created == null)
+        {
+            toastService.ShowError("Provided project name already exists");
+        }
+        else
+        {
+            toastService.ShowSuccess("Project Successfully created");
+            _navigationManager.NavigateTo(_navigationManager.Uri, true);
+        }
+    }
+}

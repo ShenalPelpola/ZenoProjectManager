@@ -1,0 +1,90 @@
+﻿@page "/projects/{ProjectId:guid}/users"
+@attribute [Authorize(Roles = "admin")]
+
+<SideNavProject ProjectId="@ProjectId"></SideNavProject>
+<div class="content-container" id="content-container">
+    <h3>Users</h3>
+
+    <ProjectUserAddView ProjectId="@ProjectId"></ProjectUserAddView>
+
+    <div class="create-button-container">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#myModal">
+            Add
+        </button>
+    </div>
+
+    @if (users == null)
+    {
+        <img src="./images/spinner.gif" class="spinner" alt="Loading..." />
+    }
+    else if (users.Count() == 0)
+    {
+        <div class="not-available">
+            <p>No users available</p>
+        </div>
+    }
+    else
+    {
+        <table class="table align-middle mb-0 bg-white">
+            <thead class="bg-light">
+                <tr>
+                    <th>User</th>
+                    <th>Title</th>
+                    <th>Role</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in users)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="@user.Avatar" class="rounded-circle" alt=""
+                                     style="width: 45px; height: 45px" />
+                                <div class="ms-3">
+                                    <p class="fw-bold mb-1">@user.FirstName @user.LastName</p>
+                                    <p class="text-muted mb-0">@user.Email</p>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            <p class="fw-bold mb-1">@user.Position</p>
+                            <p class="text-muted mb-0">@user.Department</p>
+                        </td>
+                        <td>
+                            <span>@user.Role</span>
+                        </td>
+                        <td style="text-align:right;">
+                            <button type="button" class="btn btn-outline-danger" @onclick="@(e => DeleteUser(ProjectId, user.Email))">
+                                Remove User
+                            </button>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [Inject]
+    private IProjectUserService _projectUserService { get; set; }
+
+    [Parameter]
+    public Guid ProjectId { get; set; }
+
+    public IEnumerable<User> users { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        users = await _projectUserService.GetUsersInProject(ProjectId);
+    }
+
+    public async Task DeleteUser(Guid projectId, string email)
+    {
+        var deleted = await _projectUserService.DeleteUserFromProject(projectId, email);
+        users = await _projectUserService.GetUsersInProject(ProjectId);
+        StateHasChanged();
+    }
+}

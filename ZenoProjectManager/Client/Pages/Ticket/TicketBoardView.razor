@@ -1,0 +1,156 @@
+﻿@page "/projects/{ProjectId:guid}/taskboard"
+@attribute [Authorize(Roles = "admin, user")]
+
+<SideNavProject ProjectId="@ProjectId"></SideNavProject>
+
+<div class="content-container" id="content-container">
+    <h3>Task Board</h3>
+    <TicketCreateView ProjectId="@ProjectId"></TicketCreateView>
+    <div class="create-button-container">
+        <a class="btn btn-primary" data-bs-toggle="modal" href="#exampleModalToggle" role="button">Create</a>
+    </div>
+
+    @if (tickets == null)
+    {
+        <img src="./images/spinner.gif" class="spinner" alt="Loading..." />
+    }
+    else if (todoTickets.Count() == 0 && inProgressTickets.Count() == 0 && doneTickets.Count() == 0)
+    {
+        <div class="not-available">
+            <p>No tickets available</p>
+        </div>
+    }
+    else
+    {
+        <TicketDeleteView TicketId="@selectedTicketId"></TicketDeleteView>
+        <TicketStatusView TicketId="@selectedTicketId" TicketName="@ticketName"></TicketStatusView>
+
+        <div class="todo-container">
+            <div class="column">
+                <p class="column-title">Todo</p>
+                <div class="cards">
+                    @foreach (var todo in todoTickets)
+                    {
+                        <div class="card">
+                            <div class="ticket-controls">
+                                <div class="create-button-container">
+                                    <a class="btn" data-bs-toggle="modal" href="#exampleModalToggle3" @onclick="@(e => SelectTicket(todo.Id, todo.TicketName))" role="button">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </a>
+                                    <a class="btn" @onclick="@(e => NavigateToEdit(ProjectId, todo.Id))" role="button">
+                                        <i class="far fa-edit"></i>
+                                    </a>
+                                    <a class="btn" data-bs-toggle="modal" href="#exampleModalToggle2" @onclick="@(e => SelectTicket(todo.Id, todo.TicketName))" role="button">
+                                        <i class="far fa-trash-alt"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <p>@todo.TicketName</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="column">
+                <p class="column-title">In Progress</p>
+                <div class="cards">
+                    @foreach (var inprogress in inProgressTickets)
+                    {
+                        <div class="card">
+                            <div class="ticket-controls">
+                                <div class="create-button-container">
+                                    <a class="btn" data-bs-toggle="modal" href="#exampleModalToggle3" @onclick="@(e => SelectTicket(inprogress.Id, inprogress.TicketName))" role="button">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </a>
+                                    <a class="btn" @onclick="@(e => NavigateToEdit(ProjectId, inprogress.Id))" role="button">
+                                        <i class="far fa-edit"></i>
+                                    </a>
+                                    <a class="btn" data-bs-toggle="modal" href="#exampleModalToggle2" @onclick="@(e => SelectTicket(inprogress.Id, inprogress.TicketName))" role="button">
+                                        <i class="far fa-trash-alt"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <p>@inprogress.TicketName</p>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            <div class="column">
+                <p class="column-title">Done</p>
+                <div class="cards">
+                    @foreach (var done in doneTickets)
+                    {
+                        <div class="card">
+                            <div class="ticket-controls">
+                                <div class="create-button-container">
+                                    <a class="btn" data-bs-toggle="modal" href="#exampleModalToggle3" @onclick="@(e => SelectTicket(done.Id, done.TicketName))" role="button">
+                                        <i class="fas fa-exchange-alt"></i>
+                                    </a>
+                                    <a class="btn" @onclick="@(e => NavigateToEdit(ProjectId, done.Id))" role="button">
+                                        <i class="far fa-edit"></i>
+                                    </a>
+                                    <a class="btn" data-bs-toggle="modal" href="#exampleModalToggle2" @onclick="@(e => SelectTicket(done.Id, done.TicketName))" role="button">
+                                        <i class="far fa-trash-alt"></i>
+                                    </a>
+                                </div>
+                            </div>
+                            <p>@done.TicketName</p>
+                        </div>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    @inject NavigationManager _navigationManager;
+    @using Microsoft.Extensions.Logging;
+    [Parameter]
+    public Guid ProjectId { get; set; }
+
+    @inject ILogger<TicketBoardView> _logger;
+
+    [Inject]
+    private ITicketService _ticketService { get; set; }
+    public Guid selectedTicketId { get; set; }
+
+    private IEnumerable<Ticket> tickets { get; set; }
+    private List<Ticket> todoTickets = new List<Ticket>();
+    private List<Ticket> inProgressTickets = new List<Ticket>();
+    private List<Ticket> doneTickets = new List<Ticket>();
+    private string ticketName { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        tickets = (await _ticketService.GetTickets(ProjectId.ToString())).ToList();
+        foreach (var ticket in tickets)
+        {
+            _logger.LogInformation($"{ticket.Status}");
+            if (ticket.Status == "TODO")
+            {
+                todoTickets.Add(ticket);
+            }
+            else if (ticket.Status == "IN-PROGRESS")
+            {
+                inProgressTickets.Add(ticket);
+            }
+            else if (ticket.Status == "DONE")
+            {
+                doneTickets.Add(ticket);
+            }
+        }
+    }
+
+    private void SelectTicket(Guid ticketId, string name)
+    {
+        selectedTicketId = ticketId;
+        ticketName = name;
+    }
+
+    private void NavigateToEdit(Guid ProjectId, Guid TicketId)
+    {
+        _navigationManager.NavigateTo($"/tickets/{ProjectId}/ticket/{TicketId}/edit");
+    }
+}

@@ -1,0 +1,86 @@
+﻿<div class="modal fade" id="exampleModalToggle" aria-hidden="true" aria-labelledby="exampleModalToggleLabel" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-body mt-4">
+                <div class="auth-form-header">
+                    <img src="/images/logo.png" width="50" height="50" />
+                    <h5 class="modal-title mb-3 mt-3" style="text-align: center">Sign up to Zeno as Admin</h5>
+                    <div class="row">
+                        <div class="col-md-12" @onclick="GoogleAdminRegister"> <a class="btn btn-lg btn-google btn-block text-uppercase btn-outline"><img src="https://img.icons8.com/color/16/000000/google-logo.png"> Signup Using Google</a> </div>
+                    </div>
+                </div>
+                <EditForm class="row g-3" Model="createAdmin" OnValidSubmit="HandleCreateForm">
+                    <DataAnnotationsValidator />
+                    <div class="col-md-12">
+                        <label for="adminEmail" class="form-label">Email</label>
+                        <InputText type="email" @bind-Value="createAdmin.Email" class="form-control" id="adminEmail" required>Email</InputText>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label for="adminPassword" class="form-label">Password</label>
+                        <InputText type="password" @bind-Value="createAdmin.Password" class="form-control" id="adminPassword" required>Password</InputText>
+                    </div>
+
+
+                    <div class="col-md-12 mt-4">
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    @inject ILocalStorageService _localStorageService
+    @inject NavigationManager _navigationManager
+    @inject IToastService toastService
+
+    [Inject]
+    private IAuthService _authService { get; set; }
+
+    private User createAdmin { get; set; } = new User();
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        if (QueryHelpers.ParseQuery(_navigationManager.Uri).TryGetValue("code", out var code))
+        {
+            string token = await _authService.GoogleSignUpAdmin(code);
+            await _localStorageService.SetItemAsync<string>("jwt_token", token);
+            _navigationManager.NavigateTo("/companies", true);
+        }
+    }
+
+    private async Task HandleCreateForm()
+    {
+        AuthenticationResponse authenticationResponse = await _authService.RegisterAdmin(createAdmin);
+        if (authenticationResponse == null)
+        {
+            toastService.ShowError("Provided credentials are invalid.");
+        }
+        else
+        {
+            await _localStorageService.SetItemAsync("jwt_token", authenticationResponse.Token);
+            _navigationManager.NavigateTo("/companies", true);
+        }
+    }
+
+    private async Task GoogleAdminRegister()
+    {
+        var appIdAndRedirectUri = (await _authService.GetGoogleClientID()).Split('&');
+
+        var accessTokenRequest = "https://accounts.google.com/o/oauth2/v2/auth?"
+                                    + "scope=https%3A//www.googleapis.com/auth/userinfo.profile https%3A//www.googleapis.com/auth/userinfo.email&"
+                                    + "access_type=offline&"
+                                    + "include_granted_scopes=true&"
+                                    + "response_type=code&"
+                                    + "state=state_parameter_passthrough_value&"
+                                    + $"client_id={appIdAndRedirectUri[0]}&"
+                                    + $"redirect_uri={appIdAndRedirectUri[1]}";
+
+        _navigationManager.NavigateTo(accessTokenRequest, true);
+    }
+}

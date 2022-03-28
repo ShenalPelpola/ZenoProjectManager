@@ -1,0 +1,52 @@
+﻿<div class="container">
+    <div class="modal" id="myModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Add User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <EditForm Model="projectuser" OnValidSubmit="HandleCreateForm" class="form">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3">
+                            <label for="email" class="custom-label">User Email</label>
+                            <InputText type="email" @bind-Value="projectuser.Email" class="form-control" id="projectName">User Email</InputText>
+                            <ValidationMessage class="alert alert-danger" For="@(() => projectuser.Email)" />
+                        </div>
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </EditForm>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    [Inject]
+    private IProjectUserService _projectUserService { get; set; }
+    @inject NavigationManager _navigationManager
+    @inject IToastService toastService
+
+    [Parameter]
+    public Guid ProjectId { get; set; }
+
+    private ProjectUser projectuser { get; set; } = new ProjectUser();
+
+    private async Task HandleCreateForm()
+    {
+        projectuser.ProjectId = ProjectId;
+        projectuser.AssignedDate = DateTime.Now;
+        var created = await _projectUserService.AddUserToProject(projectuser);
+        if (!created)
+        {
+            toastService.ShowError("Provided username doesn't exist or is an admin.");
+        }
+        else
+        {
+            toastService.ShowSuccess("User successfully added.");
+            _navigationManager.NavigateTo(_navigationManager.Uri, true);
+        }
+    }
+}

@@ -1,0 +1,114 @@
+﻿@page  "/profile"
+@inject NavigationManager _navigationManager
+@inject ILocalStorageService _localStorageService
+@inject IToastService toastService
+
+<SideNavAdmin></SideNavAdmin>
+<div class="content-container" id="content-container">
+    <h3 class="mb-3">Profile</h3>
+    <EditForm Model="editedUser" OnValidSubmit="HandleValidSubmit" class="form">
+        <div class="mb-4 form-group">
+            <label for="FirstName" class="custom-label">First Name</label>
+            <InputText @bind-Value="editedUser.FirstName" class="form-control" id="FirstName" disabled="@IsDisabled">First Name</InputText>
+        </div>
+
+        <div class="mb-4 form-group">
+            <label for="LastName" class="custom-label">Last Name</label>
+            <InputText @bind-Value="editedUser.LastName" class="form-control" id="LastName" disabled="@IsDisabled">Last Name</InputText>
+        </div>
+
+        <div class="mb-4 form-group">
+            <label for="email" class="custom-label">Email</label>
+            <InputText type="email" @bind-Value="editedUser.Email" class="form-control" id="email" disabled="true">Email</InputText>
+        </div>
+
+        <div class="mb-4 form-group">
+            <label for="password" class="custom-label">Password</label>
+            <InputText type="password" @bind-Value="editedUser.Password" class="form-control" id="password" disabled="@IsDisabled">Password</InputText>
+            <ValidationMessage For="@(() => editedUser.Password)" />
+        </div>
+
+        <div class="mb-4 form-group">
+            <label for="position" class="custom-label">Position</label>
+            <InputText @bind-Value="editedUser.Position" class="form-control" id="position" disabled="@IsDisabled">Position</InputText>
+        </div>
+
+        <div class="mb-4 form-group">
+            <label for="department" class="custom-label">Department</label>
+            <InputText @bind-Value="editedUser.Department" class="form-control" id="department" disabled="@IsDisabled">Department</InputText>
+        </div>
+
+        <div class="mb-4 form-group">
+            <label for="profile-pic" class="custom-label">Profile Picture</label>
+            <InputText @bind-Value="editedUser.Avatar" class="form-control" id="profile-pic" disabled="@IsDisabled">Profile Picture</InputText>
+        </div>
+
+
+        <div class="mb-4 form-group">
+            <InputText type="hidden" @bind-Value="editedUser.Role" class="form-control" id="role">role</InputText>
+        </div>
+
+
+        @if (IsDisabled)
+        {
+            <button class="btn btn-success" @onclick="activateForm">Edit</button>
+            <button type="button" class="btn btn-danger ms-3" data-bs-toggle="modal" data-bs-target="#myModal">
+                Delete
+            </button>
+        }
+        else
+        {
+            <button type="submit" class="btn btn-success mr-3">Save Changes</button>
+        }
+    </EditForm>
+
+    <UserDelete Email="@email"></UserDelete>
+</div>
+
+@code {
+    [Inject]
+    private IAuthService _authService { get; set; }
+    [Inject]
+    private IUserService _userService { get; set; }
+    private Guid userId { get; set; }
+    private User editedUser { get; set; } = new User();
+    private string email { get; set; }
+    private bool IsDisabled { get; set; } = true;
+    private User user { get; set; }
+    private string jwtToken { get; set; }
+
+
+    protected async override Task OnInitializedAsync()
+    {
+        jwtToken = await _localStorageService.GetItemAsync<string>("jwt_token");
+        if (jwtToken == null)
+        {
+            _navigationManager.NavigateTo("/");
+        }
+        editedUser = await _authService.GetUserByJwt(jwtToken);
+        email = editedUser.Email;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        var updated = await _userService.UpdateUser(editedUser);
+        if (updated == null)
+        {
+            editedUser = await _authService.GetUserByJwt(jwtToken);
+            email = editedUser.Email;
+            toastService.ShowError("Email has already been taken.");
+        }
+        else
+        {
+            toastService.ShowSuccess("Your changes have been recorded!");
+            email = editedUser.Email;
+            IsDisabled = true;
+        }
+    }
+
+    public void activateForm()
+    {
+        IsDisabled = false;
+    }
+}
+

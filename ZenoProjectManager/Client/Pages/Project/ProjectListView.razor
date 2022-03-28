@@ -1,0 +1,76 @@
+﻿@page "/companies/{CompanyId:guid}/projects"
+@attribute [Authorize(Roles = "admin")]
+
+<SideNavCompany CompanyId="@CompanyId"></SideNavCompany>
+<div class="content-container" id="content-container">
+    <h3>Projects</h3>
+
+    <ProjectCreateView CompanyId="@CompanyId"></ProjectCreateView>
+
+    <div class="create-button-container">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#myModal">
+            Create
+        </button>
+    </div>
+
+    @if (projects == null)
+    {
+        <img src="./images/spinner.gif" class="spinner" alt="Loading..." />
+    }
+    else if (projects.Count() == 0)
+    {
+        <div class="not-available">
+            <p>No projects available</p>
+        </div>
+    }
+    else
+    {
+        <table class="table align-middle mb-0 bg-white">
+            <thead class="bg-light">
+                <tr>
+                    <th>Project Name</th>
+                    <th>Description</th>
+                    <th>Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var project in projects)
+                {
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center">
+                                <img src="@project.Image" class="rounded-circle" alt=""
+                                     style="width: 45px; height: 45px" />
+                                <div class="ms-3">
+                                    <a href="/projects/@project.Id/taskboard"><p class="fw-bold mb-1">@project.ProjectName</p></a>
+                                </div>
+                            </div>
+                        </td>
+                        <td>
+                            @project.Description
+                        </td>
+                        <td>
+                            <a href="/projects/@project.Id/edit"><button type="button" class="btn btn-outline-primary">View Details</button></a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [Inject]
+    private IProjectService _projectService { get; set; }
+    @inject NavigationManager _navigationManager
+    [Parameter]
+    public Guid CompanyId { get; set; }
+
+    public IEnumerable<Project> projects { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        projects = (await _projectService.GetProjects(CompanyId.ToString())).ToList();
+    }
+
+}

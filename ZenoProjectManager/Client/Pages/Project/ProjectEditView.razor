@@ -1,0 +1,86 @@
+﻿@page  "/projects/{ProjectId:guid}/edit"
+@inject IToastService toastService
+@attribute [Authorize(Roles = "admin")]
+
+<SideNavProject ProjectId="@ProjectId"></SideNavProject>
+<div class="content-container" id="content-container">
+    <h3 class="mb-3">@projectTitle</h3>
+    <div>
+        <EditForm Model="editedProject" OnValidSubmit="HandleValidSubmit" class="form">
+            <DataAnnotationsValidator />
+
+            <div class="mb-4 form-group">
+                <label for="projectName" class="custom-label">Project Name</label>
+                <InputText @bind-Value="editedProject.ProjectName" class="form-control" id="projectName" disabled="@IsDisabled">Project Name</InputText>
+                <ValidationMessage class="alert alert-danger" For="@(() => editedProject.ProjectName)" />
+            </div>
+
+            <div class="mb-4 form-group">
+                <label for="projectImage" class="custom-label">Image Url</label>
+                <InputText @bind-Value="editedProject.Image" class="form-control" id="projectImage" disabled="@IsDisabled">Image Url</InputText>
+            </div>
+
+            <div class="mb-4 form-group">
+                <label for="projectDescription" class="custom-label">Project Description</label>
+                <InputTextArea class="form-control" id="projectDescription" style="margin-top: -1px;" @bind-Value="@editedProject.Description" rows="4" disabled="@IsDisabled"></InputTextArea>
+            </div>
+
+            @if (IsDisabled)
+            {
+                <button class="btn btn-success" @onclick="activateForm">Edit</button>
+                <button type="button" class="btn btn-danger ms-3" data-bs-toggle="modal" data-bs-target="#myModal">
+                    Delete
+                </button>
+            }
+            else
+            {
+                <button type="submit" class="btn btn-success mr-3">Save Changes</button>
+            }
+        </EditForm>
+        <ProjectDeleteView ProjectName="@projectTitle" CompanyId="@CompanyId"></ProjectDeleteView>
+    </div>
+</div>
+
+
+@code {
+
+    [Parameter]
+    public Guid ProjectId { get; set; }
+
+    [Inject]
+    private IProjectService _projectService { get; set; }
+    @inject NavigationManager _navigationManager
+
+    private Project editedProject { get; set; } = new Project();
+    private string projectTitle { get; set; }
+    private bool IsDisabled { get; set; } = true;
+    private Guid CompanyId { get; set; }
+
+    protected async override Task OnInitializedAsync()
+    {
+        editedProject = await _projectService.GetProjectById(ProjectId);
+        CompanyId = editedProject.CompanyId;
+        projectTitle = editedProject.ProjectName;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        var updated = await _projectService.UpdateProject(editedProject);
+        if (updated == null)
+        {
+            editedProject = await _projectService.GetProjectById(ProjectId);
+            toastService.ShowError("Project name has already been taken.");
+        }
+        else
+        {
+            projectTitle = updated.ProjectName;
+            toastService.ShowSuccess("Your changes have been recorded!");
+            IsDisabled = true;
+        }
+    }
+
+    public void activateForm()
+    {
+        IsDisabled = false;
+    }
+}

@@ -1,0 +1,135 @@
+﻿@page "/projects/{ProjectId:guid}/report"
+@attribute [Authorize(Roles = "admin, user")]
+@using ChartJs.Blazor.PieChart
+@using System.Drawing
+@using System.Collections.Generic;
+@using System.Text
+
+<SideNavProject ProjectId="@ProjectId"></SideNavProject>
+
+<div class="content-container" id="content-container">
+    <h5 class="mb-2 pb-3">Project Report</h5>
+
+    @if (!fetched)
+    {
+        <img src="./images/spinner.gif" class="spinner" alt="Loading..." />
+    }
+    else
+    {
+        <EditForm class="row g-3 mt-2 pb-4 border-bottom" Model="reportRequest" OnValidSubmit="HandleCreateForm">
+            <DataAnnotationsValidator />
+            <div class="col-md-3">
+                <InputDate @bind-Value="reportRequest.StartDate" class="form-control" id="ticketName" required></InputDate>
+            </div>
+            <div class="col-md-3">
+                <InputDate @bind-Value="reportRequest.EndDate" class="form-control" id="ticketDescription" style="margin-top: -1px;" rows="4"></InputDate>
+            </div>
+
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+        </EditForm>
+
+        <h6 class="mt-2 pb-1">Report for date range of @reportRequest.StartDate.Date - @reportRequest.EndDate.Date</h6>
+
+        <Chart Config="_ticketPieConfig"></Chart>
+    }
+</div>
+
+@code {
+
+    [Inject]
+    private IReportService _reportService { get; set; }
+    [Inject]
+    private IProjectService _projectService { get; set; }
+
+    [Parameter]
+    public Guid ProjectId { get; set; }
+
+    @inject NavigationManager _navigationManager
+    private PieConfig _ticketPieConfig { get; set; } = new PieConfig();
+
+    private bool fetched = false;
+    private List<int> ticketStats;
+    private IEnumerable<Ticket> completedTickets = Enumerable.Empty<Ticket>();
+    private IEnumerable<Ticket> todoTickets = Enumerable.Empty<Ticket>();
+    private IEnumerable<Ticket> inProgressTickets = Enumerable.Empty<Ticket>();
+    private ReportRequest reportRequest { get; set; } = new ReportRequest();
+    private PieDataset<int> ticketPieData { get; set; } = new PieDataset<int>();
+
+    protected async override Task OnInitializedAsync()
+    {
+        /*
+            Initialize the charts with status upto the current data from the creation date of the company.
+        */
+        // get the created date of the company.
+        Project project = await _projectService.GetProjectById(ProjectId);
+        reportRequest.StartDate = project.CreatedDate;
+        reportRequest.EndDate = DateTime.Now;
+
+        ticketStats = await GetTicketStats(reportRequest.StartDate, reportRequest.EndDate);
+
+        var backgroundTicketsPieColors = new[] { ColorUtil.ColorString(255, 99, 132, 0.6), ColorUtil.ColorString(255, 159, 64, 0.6), ColorUtil.ColorString(153, 102, 255, 0.6) }; ;
+        ticketPieData = new PieDataset<int>(new[] { ticketStats[0], ticketStats[1], ticketStats[2] }) { BackgroundColor = backgroundTicketsPieColors };
+
+        // set data to tickets charts.
+        InitializeTicketPieChart();
+        _ticketPieConfig.Data.Datasets.Add(ticketPieData);
+
+        fetched = true;
+    }
+
+    /*
+        return a list of number of todo, in-progress and completed tickets in an array.
+    */
+    private async Task<List<int>> GetTicketStats(DateTime startDate, DateTime endDate)
+    {
+        ReportRequest todoRequest = new ReportRequest() { ProjectId = ProjectId, StartDate = startDate, Status = "TODO", EndDate = endDate };
+        ReportRequest inProgressRequest = new ReportRequest() { ProjectId = ProjectId, StartDate = startDate, Status = "IN-PROGRESS", EndDate = endDate };
+        ReportRequest doneRequest = new ReportRequest() { ProjectId = ProjectId, StartDate = startDate, Status = "DONE", EndDate = endDate };
+
+        todoTickets = await _reportService.GetTicketsByStatusInProject(todoRequest);
+        inProgressTickets = await _reportService.GetTicketsByStatusInProject(inProgressRequest);
+        completedTickets = await _reportService.GetCompletedTicketsInProject(doneRequest);
+
+        return new List<int>() { todoTickets.Count(), inProgressTickets.Count(), completedTickets.Count() };
+    }
+
+    private void InitializeTicketPieChart()
+    {
+        _ticketPieConfig = new PieConfig(true);
+        _ticketPieConfig.Options = new PieOptions
+        {
+            Animation = new ArcAnimation() { AnimateRotate = true, AnimateScale = true },
+            Responsive = true,
+            Legend = new Legend
+            {
+                Position = Position.Top
+            },
+            Title = new OptionsTitle
+            {
+                Display = true,
+                Text = "Ticket Status"
+            }
+        };
+
+        // Set Up lables.
+        foreach (var party in new[] { $"Todo", "In-Progress", "Done" })
+        {
+            _ticketPieConfig.Data.Labels.Add(party);
+        }
+    }
+
+
+    private async Task HandleCreateForm()
+    {
+        var previousTicketData = ticketPieData;
+        ticketStats = await GetTicketStats(reportRequest.StartDate, reportRequest.EndDate);
+
+        // set updated ticket data.
+        var backgroundTicketsPieColors = new[] { ColorUtil.ColorString(255, 99, 132, 0.6), ColorUtil.ColorString(255, 159, 64, 0.6), ColorUtil.ColorString(153, 102, 255, 0.6) };
+        ticketPieData = new PieDataset<int>(new[] { ticketStats[0], ticketStats[1], ticketStats[2] }) { BackgroundColor = backgroundTicketsPieColors };
+        _ticketPieConfig.Data.Datasets.Remove(previousTicketData);
+        _ticketPieConfig.Data.Datasets.Add(ticketPieData);
+    }
+}

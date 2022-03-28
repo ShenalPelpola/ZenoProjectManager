@@ -1,0 +1,246 @@
+﻿@page "/companies/{CompanyId:guid}/report"
+@attribute [Authorize(Roles = "admin")]
+@using ChartJs.Blazor.PieChart
+@using System.Drawing
+@using System.Collections.Generic;
+@using System.Text
+
+<SideNavCompany CompanyId="@CompanyId"></SideNavCompany>
+<div class="content-container" id="content-container">
+    <h5 class="mb-2 pb-4">Company Report</h5>
+
+    @if (!fetched)
+    {
+        <img src="./images/spinner.gif" class="spinner" alt="Loading..." />
+    }
+    else
+    {
+    <h6 class="mt-3 pb-3 border-bottom">Current Day Stats</h6>
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card rounded">
+                <div class="card-body rounded text-center bg-info text-white">
+                    <h4 class="card-title">Total Projects</h4>
+                    <p class="card-text mt-4 mb-4 h2 text-center"><i class="fas fa-tasks fa-2x m-lg-1"></i> @totalProjects</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card rounded">
+                <div class="card-body rounded text-center bg-warning text-white">
+                    <h4 class="card-title">Total Tickets</h4>
+                    <p class="card-text mt-4 mb-4 h2 text-center"><i class="fas fa-chart-line fa-2x m-lg-1"></i>@totalTickets</p>
+                </div>
+            </div>
+        </div>
+    </div>
+        <EditForm class="row g-3 mt-4 pb-4 border-bottom" Model="reportRequest" OnValidSubmit="HandleCreateForm">
+            <DataAnnotationsValidator />
+            <div class="col-md-3">
+                <InputDate @bind-Value="reportRequest.StartDate" class="form-control" id="ticketName" required></InputDate>
+            </div>
+            <div class="col-md-3">
+                <InputDate @bind-Value="reportRequest.EndDate" class="form-control" id="ticketDescription" style="margin-top: -1px;" rows="4"></InputDate>
+            </div>
+
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+        </EditForm>
+
+        <h6 class="mt-2 pb-1">Report for date range of @reportRequest.StartDate.Date - @reportRequest.EndDate.Date</h6>
+        <div class="charts-container mt-5 pb-4">
+            <div class="chart-container" style="width: 100%; display: flex; align-items: flex-start; margin-left: -50px;">
+                <Chart Config="_ticketPieConfig"></Chart>
+            </div>
+
+
+            <div class="chart-container" style="width:100%; display: flex; align-items: flex-start; margin-left: -50px;">
+                <Chart Config="_projectPieConfig"></Chart>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+
+    [Inject]
+    private IReportService _reportService { get; set; }
+    [Inject]
+    private ICompanyService _companyService { get; set; }
+
+    [Parameter]
+    public Guid CompanyId { get; set; }
+
+    @inject NavigationManager _navigationManager
+    private PieConfig _ticketPieConfig { get; set; } = new PieConfig();
+    private PieConfig _projectPieConfig { get; set; } = new PieConfig();
+
+    private bool fetched = false;
+    private List<int> ticketStats;
+    private List<int> projectStats;
+    private IEnumerable<Project> completedProjects = Enumerable.Empty<Project>();
+    private IEnumerable<Project> inprogressProjects = Enumerable.Empty<Project>();
+    private IEnumerable<Ticket> completedTickets = Enumerable.Empty<Ticket>();
+    private IEnumerable<Ticket> todoTickets = Enumerable.Empty<Ticket>();
+    private IEnumerable<Ticket> inProgressTickets = Enumerable.Empty<Ticket>();
+    private ReportRequest reportRequest { get; set; } = new ReportRequest();
+    private PieDataset<int> ticketPieData { get; set; } = new PieDataset<int>();
+    private PieDataset<int> projectPieData { get; set; } = new PieDataset<int>();
+    private int totalTickets { get; set; }
+    private int totalProjects { get; set; }
+
+
+    protected async override Task OnInitializedAsync()
+    {
+        /*
+            Initialize the charts with status upto the current data from the creation date of the company.
+        */
+        // get the created date of the company.
+        Company company = await _companyService.GetCompanyById(CompanyId);
+        reportRequest.StartDate = company.CreatedDate;
+        reportRequest.EndDate = DateTime.Now;
+
+        ticketStats = await GetTicketStats(reportRequest.StartDate, reportRequest.EndDate);
+        projectStats = await GetProjectStats(reportRequest.StartDate, reportRequest.EndDate);
+        totalTickets = getTotalTickets(ticketStats);
+        totalProjects = getTotalProjects(projectStats);
+
+        var backgroundColors = new[] { ColorUtil.ColorString(54, 162, 235, 0.6), ColorUtil.ColorString(75, 192, 192, 0.6), ColorUtil.ColorString(153, 102, 255, 0.6) };
+        ticketPieData = new PieDataset<int>(new[] { ticketStats[0], ticketStats[1], ticketStats[2] }) { BackgroundColor = backgroundColors };
+
+        var backgroundColorsProject = new[] { ColorUtil.ColorString(54, 162, 235, 0.6), ColorUtil.ColorString(75, 192, 192, 0.6) };
+        projectPieData = new PieDataset<int>(new[] { projectStats[0], projectStats[1] }) { BackgroundColor = backgroundColors };
+
+        // set data to tickets charts.
+        InitializeTicketPieChart();
+        _ticketPieConfig.Data.Datasets.Add(ticketPieData);
+
+        // set data to project charts.
+        InitializeProjectsPieChart();
+        _projectPieConfig.Data.Datasets.Add(projectPieData);
+
+        fetched = true;
+    }
+
+    private int getTotalTickets(List<int> ticketStats)
+    {
+        int total = 0;
+        foreach(var stat in ticketStats)
+        {
+            total += stat;
+        }
+        return total;
+    }
+
+    private int getTotalProjects(List<int> projectStats)
+    {
+        int total = 0;
+        foreach (var stat in projectStats)
+        {
+            total += stat;
+        }
+        return total;
+    }
+
+    /*
+        return a list of number of todo, in-progress and completed tickets in an array.
+    */
+    private async Task<List<int>> GetTicketStats(DateTime startDate, DateTime endDate)
+    {
+        ReportRequest todoRequest = new ReportRequest() { CompanyId = CompanyId, StartDate = startDate, Status = "TODO", EndDate = endDate };
+        ReportRequest inProgressRequest = new ReportRequest() { CompanyId = CompanyId, StartDate = startDate, Status = "IN-PROGRESS", EndDate = endDate };
+        ReportRequest doneRequest = new ReportRequest() { CompanyId = CompanyId, StartDate = startDate, Status = "DONE", EndDate = endDate };
+
+        todoTickets = await _reportService.GetTicketsByStatusInCompany(todoRequest);
+        inProgressTickets = await _reportService.GetTicketsByStatusInCompany(inProgressRequest);
+        completedTickets = await _reportService.GetCompletedTicketsInCompany(doneRequest);
+
+        return new List<int>() { todoTickets.Count(), inProgressTickets.Count(), completedTickets.Count() };
+    }
+
+    /*
+        return a list of number of in-progress and completed projects in an array.
+    */
+    private async Task<List<int>> GetProjectStats(DateTime startDate, DateTime endDate)
+    {
+        ReportRequest inProgressRequest = new ReportRequest() { CompanyId = CompanyId, StartDate = startDate, EndDate = endDate };
+        ReportRequest inCompletedRequest = new ReportRequest() { CompanyId = CompanyId, StartDate = startDate, EndDate = endDate };
+
+        inprogressProjects = await _reportService.GetInProgressProjects(inProgressRequest);
+        completedProjects = await _reportService.GetCompletedProjects(inCompletedRequest);
+
+        return new List<int>() { inprogressProjects.Count(),  completedProjects.Count() };
+    }
+
+    private void InitializeTicketPieChart()
+    {
+        _ticketPieConfig = new PieConfig();
+        _ticketPieConfig.Options = new PieOptions
+        {
+            Animation = new ArcAnimation() { AnimateRotate = true, AnimateScale = true },
+            Responsive = true,
+            Legend = new Legend
+            {
+                Position = Position.Top
+            },
+            Title = new OptionsTitle
+            {
+                Display = true,
+                Text = "Ticket Status"
+            }
+        };
+
+        // Set Up lables.
+        foreach (var party in new[] { $"Todo", "In-Progress", "Done" })
+        {
+            _ticketPieConfig.Data.Labels.Add(party);
+        }
+    }
+
+    private void InitializeProjectsPieChart()
+    {
+        _projectPieConfig = new PieConfig();
+        _projectPieConfig.Options = new PieOptions
+        {
+            Animation = new ArcAnimation() { AnimateRotate = true, AnimateScale = true },
+            Responsive = true,
+            Legend = new Legend
+            {
+                Position = Position.Top
+            },
+            Title = new OptionsTitle
+            {
+                Display = true,
+                Text = "Project Status"
+            }
+        };
+
+        // Set Up lables.
+        foreach (var party in new[] { "In-Progress", "Completed" })
+        {
+            _projectPieConfig.Data.Labels.Add(party);
+        }
+    }
+
+
+    private async Task HandleCreateForm()
+    {
+        var previousTicketData = ticketPieData;
+        var previousProjectData = projectPieData;
+        ticketStats = await GetTicketStats(reportRequest.StartDate, reportRequest.EndDate);
+        projectStats = await GetProjectStats(reportRequest.StartDate, reportRequest.EndDate);
+
+        // set updated ticket data.
+        var backgroundTicketsPieColors = new[] { ColorUtil.ColorString(54, 162, 235, 0.6), ColorUtil.ColorString(75, 192, 192, 0.6), ColorUtil.ColorString(153, 102, 255, 0.6) };
+        ticketPieData = new PieDataset<int>(new[] { ticketStats[0], ticketStats[1], ticketStats[2] }) { BackgroundColor = backgroundTicketsPieColors };
+        _ticketPieConfig.Data.Datasets.Remove(previousTicketData);
+        _ticketPieConfig.Data.Datasets.Add(ticketPieData);
+
+        //setup project data.
+        var backgroundProjectPieColors = new[] { ColorUtil.ColorString(54, 162, 235, 0.6), ColorUtil.ColorString(75, 192, 192, 0.6) };
+        projectPieData = new PieDataset<int>(new[] { projectStats[0], projectStats[1] }) { BackgroundColor = backgroundProjectPieColors };
+        _projectPieConfig.Data.Datasets.Remove(previousProjectData);
+        _projectPieConfig.Data.Datasets.Add(projectPieData);
+    }
+}

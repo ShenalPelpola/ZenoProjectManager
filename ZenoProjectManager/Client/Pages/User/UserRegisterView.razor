@@ -1,0 +1,89 @@
+﻿<div class="modal fade" id="exampleModalToggle2" aria-hidden="true" aria-labelledby="exampleModalToggleLabel" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-body mt-4">
+                <div class="auth-form-header">
+                    <img src="/images/logo.png" width="50" height="50" />
+                    <h5 class="modal-title mb-3 mt-3" style="text-align: center">Sign up to Zeno</h5>
+                    <div class="row">
+                        <div class="col-md-12" @onclick="GoogleUserRegister"> <a class="btn btn-lg btn-google btn-block text-uppercase btn-outline"><img src="https://img.icons8.com/color/16/000000/google-logo.png"> Signup Using Google</a> </div>
+                    </div>
+                </div>
+                <EditForm class="row g-3" Model="createUser" OnValidSubmit="HandleCreateForm">
+                    <DataAnnotationsValidator />
+                    <div class="col-md-12">
+                        <label for="userEmail" class="form-label">Email</label>
+                        <InputText type="email" @bind-Value="createUser.Email" class="form-control" id="userEmail" required>Email</InputText>
+                    </div>
+
+                    <div class="col-md-12">
+                        <label for="userPassword" class="form-label">Password</label>
+                        <InputText type="password" @bind-Value="createUser.Password" class="form-control" id="userPassword" required>Password</InputText>
+                    </div>
+
+
+                    <div class="col-md-12 mt-4">
+                        <button type="submit" class="btn btn-primary">Create</button>
+                    </div>
+
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    @inject ILocalStorageService _localStorageService
+    @inject NavigationManager _navigationManager
+    @inject IToastService toastService
+
+    [Inject]
+    private IAuthService _authService { get; set; }
+
+    private User createUser { get; set; } = new User();
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        if (QueryHelpers.ParseQuery(_navigationManager.Uri).TryGetValue("code", out var code))
+        {
+            string token = await _authService.GoogleSignUpUser(code);
+            Console.WriteLine(token);
+            await _localStorageService.SetItemAsync<string>("jwt_token", token);
+            _navigationManager.NavigateTo("user/projects", true);
+        }
+    }
+
+    private async Task HandleCreateForm()
+    {
+        AuthenticationResponse authenticationResponse = await _authService.RegisterUser(createUser);
+
+        // check if credentials are valid
+        if (authenticationResponse == null)
+        {
+            toastService.ShowError("A user with the email already exists.");
+        }
+        else
+        {
+            await _localStorageService.SetItemAsync("jwt_token", authenticationResponse.Token);
+            _navigationManager.NavigateTo("user/projects", true);
+        }
+    }
+
+    private async Task GoogleUserRegister()
+    {
+        var appIdAndRedirectUri = (await _authService.GetGoogleClientID()).Split('&');
+
+        var accessTokenRequest = "https://accounts.google.com/o/oauth2/v2/auth?"
+                                    + "scope=https%3A//www.googleapis.com/auth/userinfo.profile https%3A//www.googleapis.com/auth/userinfo.email&"
+                                    + "access_type=offline&"
+                                    + "include_granted_scopes=true&"
+                                    + "response_type=code&"
+                                    + "state=state_parameter_passthrough_value&"
+                                    + $"client_id={appIdAndRedirectUri[0]}&"
+                                    + $"redirect_uri={appIdAndRedirectUri[1]}";
+
+        _navigationManager.NavigateTo(accessTokenRequest, true);
+    }
+}

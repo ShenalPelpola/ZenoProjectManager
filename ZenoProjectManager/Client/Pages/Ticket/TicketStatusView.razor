@@ -1,0 +1,55 @@
+﻿<div class="modal fade" id="exampleModalToggle3" aria-hidden="true" aria-labelledby="exampleModalToggleLabel" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="exampleModalToggleLabel">Change Status</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <EditForm class="row g-3" Model="changeStatus" OnValidSubmit="HandleStatusChange">
+                    <div class="col-md-6">
+                        <label for="status" class="form-label">Status</label>
+                        <InputSelect id="status" @bind-Value="ticketChangedStatus" class="form-select">
+                            @foreach (var stat in Status)
+                            {
+                                <option value="@stat">@stat</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage class="alert alert-danger" For="@(() => ticketChangedStatus)" />
+
+                    </div>
+
+                    <div class="col-12">
+                        <button type="submit" class="btn btn-outline-success">Change</button>
+                    </div>
+                </EditForm>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code{
+    @inject NavigationManager _navigationManager
+    [Inject]
+    private ITicketService _ticketService { get; set; }
+    [Parameter]
+    public Guid TicketId { get; set; }
+    [Parameter]
+    public string TicketName { get; set; }
+
+    private Ticket changeStatus { get; set; } = new Ticket();
+    private List<string> Status { get; set; } = new List<string>() { "TODO", "IN-PROGRESS", "DONE" };
+    private string ticketChangedStatus { get; set; } = "TODO";
+
+
+    public async Task HandleStatusChange()
+    {
+        changeStatus.Id = TicketId;
+        changeStatus.TicketName = TicketName;
+        changeStatus.Status = ticketChangedStatus;
+        var updated = await _ticketService.UpdateTicketStatus(changeStatus);
+        _navigationManager.NavigateTo(_navigationManager.Uri, true);
+    }
+}
+

@@ -1,0 +1,12 @@
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\bin\Debug\net5.0\ZenoProjectManager.Shared.deps.json
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\bin\Debug\net5.0\ZenoProjectManager.Shared.dll
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\bin\Debug\net5.0\ref\ZenoProjectManager.Shared.dll
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\bin\Debug\net5.0\ZenoProjectManager.Shared.pdb
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\obj\Debug\net5.0\ZenoProjectManager.Shared.csproj.AssemblyReference.cache
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\obj\Debug\net5.0\ZenoProjectManager.Shared.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\obj\Debug\net5.0\ZenoProjectManager.Shared.AssemblyInfoInputs.cache
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\obj\Debug\net5.0\ZenoProjectManager.Shared.AssemblyInfo.cs
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\obj\Debug\net5.0\ZenoProjectManager.Shared.csproj.CoreCompileInputs.cache
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\obj\Debug\net5.0\ZenoProjectManager.Shared.dll
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\obj\Debug\net5.0\ref\ZenoProjectManager.Shared.dll
+C:\Users\Acer\source\repos\Zeno\ZenoProjectManager\Shared\obj\Debug\net5.0\ZenoProjectManager.Shared.pdb

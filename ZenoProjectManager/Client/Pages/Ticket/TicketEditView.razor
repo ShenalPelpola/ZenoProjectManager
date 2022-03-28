@@ -1,0 +1,127 @@
+﻿@page "/tickets/{ProjectId:guid}/ticket/{TicketId:guid}/edit"
+@attribute [Authorize(Roles = "admin, user")]
+@inject IToastService toastService
+
+<SideNavProject ProjectId="@ProjectId"></SideNavProject>
+<div class="content-container" id="content-container">
+    <h3 class="mb-4">@ticketTitle</h3>
+    <div>
+        <EditForm Model="editedTicket" OnValidSubmit="HandleValidSubmit" class="form">
+            <DataAnnotationsValidator />
+
+            <divs class="mb-4 form-group">
+                <label for="ticketName" class="custom-label">Ticket Name</label>
+                <InputText @bind-Value="editedTicket.TicketName" class="form-control mb-2" id="ticketName" disabled="@IsDisabled">Ticket Name</InputText>
+            </divs>
+
+            <div class="mb-4 form-group">
+                <label for="ticketDescription" class="custom-label">Ticket Description</label>
+                <InputTextArea class="form-control" id="ticketDescription" style="margin-top: -1px;" @bind-Value="@editedTicket.Description" rows="4" disabled="@IsDisabled"></InputTextArea>
+            </div>
+
+            <div class="mb-4 form-group">
+                <label for="storyPoints" class="form-label">Story Points</label>
+                <InputText @bind-Value="storyPoints" class="form-control" id="storyPoints" disabled="@IsDisabled">Story Points</InputText>
+            </div>
+
+            <div class="mb-4 form-group">
+                <label for="type" class="form-label">Type</label>
+                <InputText @bind-Value="editedTicket.Type" type="text" class="form-control" id="type" disabled="@IsDisabled">Type</InputText>
+            </div>
+
+            <div class="mb-4 form-group">
+                <label for="users" class="form-label">Assignee</label>
+                <InputSelect id="users" @bind-Value="userId" class="form-select" disabled="@IsDisabled">
+                    <option value="" selected disabled>Unassigned</option>
+                    @foreach (var user in Users)
+                    {
+                        <option value="@user.Id">@user.Email</option>
+                    }
+                </InputSelect>
+
+            </div>
+
+            @if (IsDisabled)
+            {
+                <button class="btn btn-success" @onclick="activateForm">Edit</button>
+            }
+            else
+            {
+                <button type="submit" class="btn btn-success mr-3">Save Changes</button>
+            }
+        </EditForm>
+    </div>
+</div>
+
+
+@code {
+    @inject NavigationManager _navigationManager
+
+    [Inject]
+    private ITicketService _ticketService { get; set; }
+    [Inject]
+    private IProjectUserService _projectUserService { get; set; }
+    [Parameter]
+    public Guid TicketId { get; set; }
+    [Parameter]
+    public Guid ProjectId { get; set; }
+
+    private Ticket editedTicket { get; set; } = new Ticket();
+    private string ticketTitle { get; set; }
+    private string storyPoints { get; set; }
+    private string userId { get; set; }
+    private bool IsDisabled { get; set; } = true;
+    private Guid CompanyId { get; set; }
+    private List<User> Users { get; set; } = new List<User>();
+
+    protected async override Task OnInitializedAsync()
+    {
+        editedTicket = await _ticketService.GetTicketById(TicketId);
+        Users = (await _projectUserService.GetUsersInProject(ProjectId)).ToList();
+        userId = editedTicket.UserId.ToString();
+        ticketTitle = editedTicket.TicketName;
+        storyPoints = editedTicket.StoryPoints.ToString();
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        editedTicket.ProjectId = ProjectId;
+
+        if (userId != string.Empty)
+        {
+            editedTicket.UserId = Guid.Parse(userId);
+        }
+
+        if (storyPoints != null)
+        {
+            int StoryPointsint;
+            bool isNumber = int.TryParse(storyPoints, out StoryPointsint);
+            if (!isNumber)
+            {
+                editedTicket.StoryPoints = 0;
+            }
+            else
+            {
+                editedTicket.StoryPoints = StoryPointsint;
+            }
+        }
+
+        var updated = await _ticketService.UpdateTicket(editedTicket);
+        if (updated == null)
+        {
+            editedTicket = await _ticketService.GetTicketById(TicketId);
+            toastService.ShowError("Ticket name has already been taken.");
+        }
+        else
+        {
+            ticketTitle = updated.TicketName;
+            toastService.ShowSuccess("Your changes have been recorded!");
+            IsDisabled = true;
+        }
+    }
+
+    public void activateForm()
+    {
+        IsDisabled = false;
+    }
+}

@@ -1,0 +1,60 @@
+﻿<div class="container">
+
+    <div class="modal" id="myModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Project</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        This will permanently delete the project <b>@ProjectName</b> and all
+                        tickets and previous progress will be loss.
+                    </p>
+                    <span>Please type <b>@ProjectName</b> to confirm.</span>
+
+                    <EditForm Model="deleteProject" OnValidSubmit="HandleDelete" class="form">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3 form-group">
+                            <InputText @bind-Value="deleteProject.ProjectName" class="form-control"></InputText>
+                            <ValidationMessage For="@(() => deleteProject.ProjectName)" />
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-outline-danger" data-bs-dismiss="modal">Confirm</button>
+                        </div>
+                    </EditForm>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code{
+    @inject NavigationManager _navigationManager
+    [Inject]
+    private IProjectService _projectService { get; set; }
+    @inject IToastService toastService
+
+    [Parameter]
+    public string ProjectName { get; set; }
+    [Parameter]
+    public Guid CompanyId { get; set; }
+    private Project deleteProject { get; set; } = new Project();
+
+    public async Task HandleDelete()
+    {
+        var deleted = await _projectService.DeleteProject(deleteProject.ProjectName, CompanyId);
+        if (deleted == null)
+        {
+            toastService.ShowError("Provided company name is invalid.");
+        }
+        else
+        {
+            _navigationManager.NavigateTo("/companies/" + CompanyId + "/projects", true);
+        }
+    }
+}
+
+

@@ -1,0 +1,67 @@
+﻿@page "/companies"
+@inject NavigationManager _navigationManager
+@inject ILocalStorageService _localStorageService
+@attribute [Authorize(Roles = "admin")]
+
+<SideNavAdmin></SideNavAdmin>
+<div class="content-container" id="content-container">
+    <h3>Companies</h3>
+
+    @if (userId != Guid.Empty)
+    {
+        <CompanyCreateView UserId="@user.Id"></CompanyCreateView>
+        <div class="create-button-container">
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#myModal">
+                Create
+            </button>
+        </div>
+    }
+
+    @if (companies == null)
+    {
+        <img src="./images/spinner.gif" class="spinner" alt="Loading..." />
+    }
+    else if (companies.Count() == 0)
+    {
+        <div class="not-available">
+            <p>No companies available</p>
+        </div>
+    }
+    else
+    {
+        <div class="companies-container">
+            @foreach (var company in companies)
+            {
+                <div class="company-container">
+                    <a href="/companies/@company.Id/projects">
+                        <img src="@company.Avatar" width="100" height="100" alt="">
+                        <h5>@company.CompanyName</h5>
+                    </a>
+                </div>
+            }
+        </div>
+    }
+</div>
+
+@code {
+    [Inject]
+    private ICompanyService CompanyService { get; set; }
+    [Inject]
+    private IAuthService _authService { get; set; }
+    private IEnumerable<Company> companies { get; set; }
+    private Guid userId { get; set; }
+    private User user { get; set; }
+
+
+    protected override async Task OnInitializedAsync()
+    {
+        var jwtToken = await _localStorageService.GetItemAsync<string>("jwt_token");
+        if (jwtToken == null) {
+            _navigationManager.NavigateTo("/");
+        }
+
+        user = await _authService.GetUserByJwt(jwtToken);
+        userId = user.Id;
+        companies = (await CompanyService.GetCompanies(user.Id.ToString())).ToList();
+    }
+}

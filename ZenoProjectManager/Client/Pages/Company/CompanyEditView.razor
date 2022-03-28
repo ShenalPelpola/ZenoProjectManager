@@ -1,0 +1,90 @@
+﻿@page  "/companies/{CompanyId:guid}/edit"
+@inject IToastService toastService
+@attribute [Authorize(Roles = "admin")]
+
+<SideNavCompany CompanyId="@CompanyId"></SideNavCompany>
+<div class="content-container" id="content-container">
+    <h3 class="mb-3">@companyTitle</h3>
+    <div>
+        <EditForm Model="editedCompany" OnValidSubmit="HandleValidSubmit" class="form">
+            <DataAnnotationsValidator />
+
+            <div class="mb-4 form-group">
+                <label for="companyName" class="custom-label">Company Name</label>
+                <InputText @bind-Value="editedCompany.CompanyName" class="form-control" id="companyName" disabled="@IsDisabled">Company Name</InputText>
+                <ValidationMessage class="alert alert-danger" For="@(() => editedCompany.CompanyName)" />
+            </div>
+
+            <div class="mb-4 form-group">
+                <label for="companyType" class="custom-label">Company Type</label>
+                <InputText @bind-Value="editedCompany.Type" class="form-control" id="companyType" disabled="@IsDisabled">Company Type</InputText>
+            </div>
+
+            <div class="mb-4 form-group">
+                <label for="companyImage" class="custom-label">Image Url</label>
+                <InputText @bind-Value="editedCompany.Avatar" class="form-control" id="companyImage" disabled="@IsDisabled">Image Url</InputText>
+            </div>
+
+            <div class="mb-4 form-group">
+                <label for="companyDescription" class="custom-label">Company Description</label>
+                <InputTextArea class="form-control" id="companyDescription" style="margin-top: -1px;" @bind-Value="@editedCompany.Description" rows="4" disabled="@IsDisabled"></InputTextArea>
+            </div>
+
+            @if (IsDisabled)
+            {
+                <button class="btn btn-success" @onclick="activateForm">Edit</button>
+                <button type="button" class="btn btn-danger ms-3" data-bs-toggle="modal" data-bs-target="#myModal">
+                    Delete
+                </button>
+            }
+            else
+            {
+                <button type="submit" class="btn btn-success mr-3">Save Changes</button>
+            }
+        </EditForm>
+        <CompanyDeleteView CompanyName="@companyTitle"></CompanyDeleteView>
+    </div>
+</div>
+
+
+@code {
+
+    [Parameter]
+    public Guid CompanyId { get; set; }
+
+    [Inject]
+    private ICompanyService _companyService { get; set; }
+    @inject NavigationManager _navigationManager
+
+    private Company editedCompany { get; set; } = new Company();
+    private string companyTitle { get; set; }
+    private bool IsDisabled { get; set; } = true;
+
+
+    protected async override Task OnInitializedAsync()
+    {
+        editedCompany = await _companyService.GetCompanyById(CompanyId);
+        companyTitle = editedCompany.CompanyName;
+    }
+
+    private async Task HandleValidSubmit()
+    {
+        var updated = await _companyService.UpdateCompany(editedCompany);
+        if (updated == null)
+        {
+            editedCompany = await _companyService.GetCompanyById(CompanyId);
+            toastService.ShowError("Company name has already been taken.");
+        }
+        else
+        {
+            companyTitle = updated.CompanyName;
+            toastService.ShowSuccess("Your changes have been recorded!");
+            IsDisabled = true;
+        }
+    }
+
+    public void activateForm()
+    {
+        IsDisabled = false;
+    }
+}

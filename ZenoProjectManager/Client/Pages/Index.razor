@@ -1,0 +1,58 @@
+﻿@page "/"
+@using Microsoft.AspNetCore.WebUtilities
+@using ZenoProjectManager.Client.Pages.User
+
+@inject NavigationManager _navigationManager
+@inject ILocalStorageService _localStorageService
+
+<AdminRegisterView></AdminRegisterView>
+<UserRegisterView></UserRegisterView>
+<UserLoginView></UserLoginView>
+
+<div class="home-container">
+    <div class="home-content">
+        <div class="home-content-container">
+            <div class="home-left">
+                <div class="main-title">
+                    <h1>Transforming the way organizations define, design, and build software.</h1>
+
+                    <p class="home-text">
+                        We provide you with the most optimal project management tool to keep track of your
+                        projects. To help you make sense of it all, we’ve rounded up the best project management
+                        software options to get you just a little bit closer to total productivity paradise.
+                    </p>
+
+                    <div class="home-button-container">
+                        <div class="sign-up-container" id="sign-up-admin">
+                            <a class="btn btn-main" data-bs-toggle="modal" href="#exampleModalToggle" role="button">Sign up admin</a>
+                        </div>
+                        <div class="sign-up-container" id="sign-up-user">
+                            <a class="btn btn-main btn-user" data-bs-toggle="modal" href="#exampleModalToggle2" role="button">Sign up user</a>
+                        </div>
+                        <div>
+                            <a class="btn btn-main" data-bs-toggle="modal" href="#exampleModalToggle3" role="button">Login</a>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <div class="home-right">
+                <img src="/images/home-image.jpg" alt="landing page image" class="home-image">
+            </div>
+        </div>
+    </div>
+</div>
+
+@*<button type="button" class="btn btn-primary ms-3" @onclick="LogoutUser">Logout</button>*@
+
+@code {
+
+
+    private async Task LogoutUser()
+    {
+        await _localStorageService.RemoveItemAsync("jwt_token");
+        _navigationManager.NavigateTo("/", true);
+    }
+
+}

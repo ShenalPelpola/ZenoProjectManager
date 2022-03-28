@@ -1,0 +1,137 @@
+﻿@page "/companies/{CompanyId:guid}/prediction"
+@attribute [Authorize(Roles = "admin")]
+
+<SideNavCompany CompanyId="@CompanyId"></SideNavCompany>
+<div class="content-container" id="content-container">
+    <h2>Predictions</h2>
+
+    @if (!fetched)
+    {
+        <img src="./images/spinner.gif" class="spinner" alt="Loading..." />
+    }
+    else
+    {
+        <EditForm class="row g-3 mt-3 pb-5 border-bottom" Model="predictionRequest" OnValidSubmit="HandleCreateForm">
+            <DataAnnotationsValidator />
+            <div class="col-md-3">
+                <InputDate @bind-Value="predictionRequest.PredictionDate" class="form-control" id="ticketName" required></InputDate>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary">Submit</button>
+            </div>
+        </EditForm>
+
+        <div class="row mt-4">
+            <div class="col-sm-6">
+                <div class="card rounded">
+                    <div class="card-body rounded text-center bg-info text-white">
+                        <h4 class="card-title">Current Number of projects</h4>
+                        <p class="card-text mt-4 mb-4 h2 text-center"><i class="fas fa-tasks fa-2x"></i> @currentProjects</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-sm-6">
+                <div class="card rounded">
+                    <div class="card-body rounded text-center bg-warning text-white">
+                        <h4 class="card-title">Predicted Number of projects.</h4>
+                        <p class="card-text mt-4 mb-4 h2 text-center"><i class="fas fa-chart-line fa-2x"></i> @predictedProjects</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <table class="table mt-4">
+            <thead class="thead-dark">
+                <tr>
+                    <th scope="col">Project ID</th>
+                    <th scope="col">Project Name</th>
+                    <th scope="col">Current Users</th>
+                    <th scope="col">Predicted Users</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in userPrediction)
+                {
+                    <tr>
+                        <th scope="row">@user.ProjectId</th>
+                        <td>@user.ProjectName</td>
+                        <td>@user.CurrentUsers</td>
+                        <td>@user.PredictedUsers</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    }
+</div>
+
+@code {
+    [Parameter]
+    public Guid CompanyId { get; set; }
+    [Inject]
+    private ICompanyService _companyService { get; set; }
+    private int currentProjects { get; set; }
+    private int predictedProjects { get; set; }
+    private bool fetched = false;
+    private IEnumerable<UserPredictionResponse> userPrediction { get; set; }
+    private PredictionResponse projectPrediction { get; set; }
+
+    [Inject]
+    private IPredictionService _predictionService { get; set; }
+    [Inject]
+    private IProjectService _projectService { get; set; }
+    private PredictionRequest predictionRequest { get; set; } = new PredictionRequest();
+
+
+    protected async override Task OnInitializedAsync()
+    {
+        Company company = await _companyService.GetCompanyById(CompanyId);
+        predictionRequest.CompanyId = CompanyId;
+        predictionRequest.CompanyCreatedDate = company.CreatedDate;
+        predictionRequest.PredictionDate = DateTime.Now.AddMonths(1);
+
+        projectPrediction = await _predictionService.GetProjectsPrediction(predictionRequest);
+        userPrediction = await _predictionService.GetUserPrediction(predictionRequest);
+        if (projectPrediction == null)
+        {
+            predictedProjects = 0;
+            currentProjects = (await _projectService.GetProjects(company.Id.ToString())).Count();
+        }
+        else
+        {
+            if (projectPrediction.Prediction < 0)
+            {
+                currentProjects = (await _projectService.GetProjects(company.Id.ToString())).Count();
+                predictedProjects = 0;
+            }
+            else
+            {
+                currentProjects = projectPrediction.Current;
+                predictedProjects = projectPrediction.Prediction;
+            }
+        }
+
+        fetched = true;
+    }
+
+    private async Task HandleCreateForm()
+    {
+        projectPrediction = await _predictionService.GetProjectsPrediction(predictionRequest);
+        userPrediction = await _predictionService.GetUserPrediction(predictionRequest);
+        if (projectPrediction == null)
+        {
+            predictedProjects = 0;
+        }
+        else
+        {
+            if (projectPrediction.Prediction < 0)
+            {
+                predictedProjects = 0;
+            }
+            else
+            {
+                predictedProjects = projectPrediction.Prediction;
+            }
+        }
+        fetched = true;
+    }
+}

@@ -1,0 +1,58 @@
+﻿<div class="container">
+    <div class="modal" id="myModal">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Confirmation</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>
+                        This will permanently delete the <b>@CompanyName</b> and all
+                        projects, tickets and previous work.
+                    </p>
+                    <span>Please type <b>@CompanyName</b> to confirm.</span>
+
+                    <EditForm Model="deleteCompany" OnValidSubmit="HandleDelete" class="form">
+                        <DataAnnotationsValidator />
+                        <div class="mb-3 form-group">
+                            <InputText @bind-Value="deleteCompany.CompanyName" class="form-control"></InputText>
+                            <ValidationMessage For="@(() => deleteCompany.CompanyName)" />
+                        </div>
+                        <div class="modal-footer">
+                            <button type="submit" class="btn btn-outline-danger">Confirm</button>
+                        </div>
+                    </EditForm>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+
+    @inject NavigationManager _navigationManager
+    @inject IToastService toastService
+
+    [Inject]
+    private ICompanyService _companyService { get; set; }
+
+    [Parameter]
+    public string CompanyName { get; set; }
+    private Company deleteCompany { get; set; } = new Company();
+    protected bool ShowConfirmation { get; set; }
+
+
+    public async Task HandleDelete()
+    {
+        var deleted = await _companyService.DeleteCompany(deleteCompany.CompanyName);
+        if (deleted == null)
+        {
+            toastService.ShowError("Provided company name is invalid.");
+        }
+        else {
+            _navigationManager.NavigateTo("/companies", true);
+        }
+    }
+}
